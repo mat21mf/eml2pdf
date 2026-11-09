@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: eml2pdf
+Version: 0.1.0
+Summary: Convert .eml files to PDF using headless Chromium
+Requires-Python: >=3.10
+Requires-Dist: beautifulsoup4

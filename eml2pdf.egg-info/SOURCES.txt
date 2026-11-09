@@ -1,0 +1,9 @@
+pyproject.toml
+eml2pdf/__init__.py
+eml2pdf/cli.py
+eml2pdf.egg-info/PKG-INFO
+eml2pdf.egg-info/SOURCES.txt
+eml2pdf.egg-info/dependency_links.txt
+eml2pdf.egg-info/entry_points.txt
+eml2pdf.egg-info/requires.txt
+eml2pdf.egg-info/top_level.txt
