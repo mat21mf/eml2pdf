@@ -34,9 +34,14 @@ A Chromium-based browser must be available: `chromium`, `chromium-browser`,
 `google-chrome[-stable]`, `microsoft-edge[-stable]` or `brave-browser` in
 `PATH`, or set explicitly with `--chromium PATH` / `EML2PDF_CHROMIUM`.
 
-On Rocky Linux: `dnf install chromium` (EPEL). On Ubuntu/WSL, where
-`chromium-browser` is a snap, the Google Chrome `.deb` or a portable build
-(e.g. ungoogled-chromium portablelinux tarball) works without snapd.
+On Rocky Linux: `dnf install chromium` (EPEL). On Ubuntu, `chromium-browser`
+and `/snap/bin/chromium` are snaps: they work, but a snap has a private
+`/tmp`, so eml2pdf detects them and stages its temporary files in
+`~/snap/<name>/common/eml2pdf` instead (override with `--tmpdir` or
+`EML2PDF_TMPDIR`; for snaps it must be a non-hidden path under `$HOME` or
+under `~/snap/<name>/`). The snap prints harmless `update.go`/dbus noise to
+stderr. On WSL, where snapd usually does not work, use the Google Chrome
+`.deb` or a portable build (e.g. ungoogled-chromium portablelinux tarball).
 
 ## Usage
 

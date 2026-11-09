@@ -15,6 +15,7 @@ import argparse
 import base64
 import html
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -292,6 +293,48 @@ def find_chromium(explicit=None):
              "or set EML2PDF_CHROMIUM")
 
 
+def snap_name(chrome):
+    """Return the snap name if chrome is a snap package, else None.
+
+    Snap apps get a private /tmp and cannot see the caller's /tmp, so
+    the HTML input and PDF output must be staged somewhere the snap can
+    reach. Detected cases:
+      - /snap/bin/<name> (symlink to /usr/bin/snap)
+      - Ubuntu transitional wrappers such as /usr/bin/chromium-browser,
+        a small shell script that execs /snap/bin/chromium
+    """
+    path = Path(chrome)
+    if path.parent == Path("/snap/bin") or \
+            os.path.realpath(chrome) == "/usr/bin/snap":
+        return path.name
+    try:
+        with open(chrome, "rb") as f:
+            head = f.read(4096)
+    except OSError:
+        return None
+    if head.startswith(b"#!"):
+        m = re.search(rb"/snap/bin/([A-Za-z0-9][A-Za-z0-9._-]*)", head)
+        if m:
+            return m.group(1).decode("ascii")
+    return None
+
+
+def work_tmpdir(chrome, explicit=None):
+    """Directory where temporary files are created (None = system
+    default). Explicit choice wins; for snap browsers use
+    ~/snap/<name>/common, which the snap can always read and write."""
+    explicit = explicit or os.environ.get("EML2PDF_TMPDIR")
+    if explicit:
+        Path(explicit).mkdir(parents=True, exist_ok=True)
+        return explicit
+    name = snap_name(chrome) if chrome else None
+    if name:
+        d = Path.home() / "snap" / name / "common" / "eml2pdf"
+        d.mkdir(parents=True, exist_ok=True)
+        return str(d)
+    return None
+
+
 def print_to_pdf(chrome, html_path, pdf_path, profile_dir, no_sandbox,
                  allow_remote, timeout):
     cmd = [
@@ -347,7 +390,8 @@ def convert(src, dst, chrome, args):
         for p in extract_attachments(msg, adir):
             print(f"Attachment: {p}")
 
-    with tempfile.TemporaryDirectory(prefix="eml2pdf_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="eml2pdf_",
+                                     dir=args.tmpdir) as tmp:
         html_path = Path(tmp) / "message.html"
         html_path.write_text(page, encoding="utf-8")
         tmp_pdf = Path(tmp) / "out.pdf"
@@ -390,6 +434,10 @@ def parse_args(argv):
                    default=(hasattr(os, "geteuid") and os.geteuid() == 0),
                    help="pass --no-sandbox to Chromium "
                         "(automatic when running as root)")
+    p.add_argument("--tmpdir",
+                   help="directory for temporary files (default: "
+                        "$EML2PDF_TMPDIR, ~/snap/<name>/common/eml2pdf for "
+                        "snap browsers, else the system temp dir)")
     p.add_argument("--timeout", type=int, default=120,
                    help="seconds per file (default: 120)")
     args = p.parse_args(argv)
@@ -408,6 +456,7 @@ def parse_args(argv):
 def main(argv=None):
     args = parse_args(argv)
     chrome = None if args.html_only else find_chromium(args.chromium)
+    args.tmpdir = work_tmpdir(chrome, args.tmpdir)
     failures = 0
     for src in args.inputs:
         src_path = Path(src)
